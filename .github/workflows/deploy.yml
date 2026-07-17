@@ -1,25 +1,42 @@
-name: Deploy NodeJS Application to AWS
-
+name: Deploy Node App
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      - name: Login Docker Hub
+        run: |
 
-      - name: Deploy Via SSH
+          docker login \
+          -u ${{ secrets.DOCKER_USERNAME }} \
+          -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build Docker Image
+        run: |
+
+          docker build \
+          -t ${{ secrets.DOCKER_USERNAME }}/node-app:latest .
+      - name: Push Docker Image
+        run: |
+
+          docker push \
+          ${{ secrets.DOCKER_USERNAME }}/node-app:latest
+      - name: Deploy EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
+          host: '${{ secrets.SSH_HOST }}'
           username: ubuntu
-          key: ${{ secrets.SSH_KEY }}
+          key: '${{ secrets.SSH_KEY }}'
           script: |
-            cd /home/ubuntu/nodejs-app-deploy-github-actions
-            git pull
-            sudo docker compose up -d --build
+
+            cd /home/ubuntu/node-app-deploy
+
+            docker pull ${{ secrets.DOCKER_USERNAME }}/node-app:latest
+
+            docker compose down
+
+            docker compose up -d
